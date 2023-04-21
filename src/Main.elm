@@ -1,8 +1,9 @@
 module Main exposing (main)
 
 import Browser
-import Html exposing (Html, button, div, text)
-import Html.Events exposing (onClick)
+import Html as H
+import Html.Attributes as HA
+import Html.Events as HE
 import Dict exposing (Dict)
 import Set exposing (Set)
 import Time
@@ -84,15 +85,41 @@ subscriptions : Model -> Sub Msg
 subscriptions model =
     if model.turnStarted then
         Time.every 1000 (\_ -> TurnTick)
+
     else
         Sub.none
         
 
 view : Model -> Html Msg
 view model =
-    div []
-        [ text "Speed mime!"
-        ]
+    if model.turnStarted then
+        H.div
+            []
+            [ H.p [] [ H.text (String.fromInt model.turnInSeconds)
+            , model.turnWords
+                |> List.map (\word ->
+                    H.li
+                        []
+                        [ H.button
+                          [ HE.onClick (Word word) 
+                          , if Set.member word model.turnWordsGuessed then
+                                HA.disabled
+                            else
+                                HA.class ""
+                          ]
+                          [ H.text word ]
+                        ]
+                )
+                |> H.ul []
+            ]
+
+    else
+      H.div
+          []
+          [ H.button
+              [ HE.onClick StartTurn ]
+              [ H.text "Start turn" ]
+          ]
 
 
 main : Program (List String) Model Msg

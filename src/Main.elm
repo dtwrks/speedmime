@@ -1,10 +1,10 @@
 module Main exposing (main)
 
 import Browser
+import Dict exposing (Dict)
 import Html as H
 import Html.Attributes as HA
 import Html.Events as HE
-import Dict exposing (Dict)
 import Set exposing (Set)
 import Time
 
@@ -51,6 +51,7 @@ update msg model =
                     modBy
                         (Dict.size model.teamScore)
                         (model.teamTurn + 1)
+                , turnStarted = True
                 , turnInSeconds = 0
                 , turnWords = []
                 , turnWordsGuessed = Set.empty
@@ -60,17 +61,24 @@ update msg model =
                         model.teamTurn
                         (\score ->
                             score
-                            |> Maybe.withDefault 0
-                            |> (+) (Set.size model.turnWordsGuessed)
-                            |> Just
+                                |> Maybe.withDefault 0
+                                |> (+) (Set.size model.turnWordsGuessed)
+                                |> Just
                         )
                         model.teamScore
             }
 
         TurnTick ->
-            { model | turnInSeconds = model.turnInSeconds + 1 }
-        
-        
+            let
+                turnInSeconds : Int
+                turnInSeconds =
+                    model.turnInSeconds + 1
+            in
+            { model
+                | turnInSeconds = turnInSeconds
+                , turnStarted = turnInSeconds >= 60
+            }
+
         Word word ->
             { model | turnWordsGuessed = Set.insert word model.turnWordsGuessed }
 
@@ -81,45 +89,47 @@ update msg model =
             }
 
 
-subscriptions : Model -> Sub Msg 
+subscriptions : Model -> Sub Msg
 subscriptions model =
     if model.turnStarted then
         Time.every 1000 (\_ -> TurnTick)
 
     else
         Sub.none
-        
 
-view : Model -> Html Msg
+
+view : Model -> H.Html Msg
 view model =
     if model.turnStarted then
         H.div
             []
-            [ H.p [] [ H.text (String.fromInt model.turnInSeconds)
+            [ H.p [] [ H.text (String.fromInt model.turnInSeconds) ]
             , model.turnWords
-                |> List.map (\word ->
-                    H.li
-                        []
-                        [ H.button
-                          [ HE.onClick (Word word) 
-                          , if Set.member word model.turnWordsGuessed then
-                                HA.disabled
-                            else
-                                HA.class ""
-                          ]
-                          [ H.text word ]
-                        ]
-                )
+                |> List.map
+                    (\word ->
+                        H.li
+                            []
+                            [ H.button
+                                [ HE.onClick (Word word)
+                                , if Set.member word model.turnWordsGuessed then
+                                    HA.disabled True
+
+                                  else
+                                    HA.class ""
+                                ]
+                                [ H.text word ]
+                            ]
+                    )
                 |> H.ul []
             ]
 
     else
-      H.div
-          []
-          [ H.button
-              [ HE.onClick StartTurn ]
-              [ H.text "Start turn" ]
-          ]
+        H.div
+            []
+            [ H.button
+                [ HE.onClick StartTurn ]
+                [ H.text "Start turn" ]
+            ]
 
 
 main : Program (List String) Model Msg

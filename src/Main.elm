@@ -9,6 +9,16 @@ import Set exposing (Set)
 import Time
 
 
+wordsPerTurn : Int
+wordsPerTurn =
+    5
+
+
+turnDuration : Int
+turnDuration =
+    10
+
+
 type alias Model =
     { teamScore : Dict Int Int
     , teamTurn : Int
@@ -38,7 +48,6 @@ type Msg
     = StartTurn
     | TurnTick
     | Word String
-    | MoreWords
 
 
 update : Msg -> Model -> Model
@@ -53,19 +62,9 @@ update msg model =
                         (model.teamTurn + 1)
                 , turnStarted = True
                 , turnInSeconds = 0
-                , turnWords = []
                 , turnWordsGuessed = Set.empty
-                , wordsArchive = model.wordsArchive
-                , teamScore =
-                    Dict.update
-                        model.teamTurn
-                        (\score ->
-                            score
-                                |> Maybe.withDefault 0
-                                |> (+) (Set.size model.turnWordsGuessed)
-                                |> Just
-                        )
-                        model.teamScore
+                , turnWords = List.take wordsPerTurn model.wordsArchive
+                , wordsArchive = List.drop wordsPerTurn model.wordsArchive   
             }
 
         TurnTick ->
@@ -74,19 +73,44 @@ update msg model =
                 turnInSeconds =
                     model.turnInSeconds + 1
             in
-            { model
-                | turnInSeconds = turnInSeconds
-                , turnStarted = turnInSeconds >= 60
-            }
+            if turnInSeconds < turnDuration then
+                { model | turnInSeconds = turnInSeconds }
+            else
+                { model
+                    | turnStarted = False
+                    , teamScore =
+                        Dict.update
+                            model.teamTurn
+                            (\score ->
+                                score
+                                    |> Maybe.withDefault 0
+                                    |> (+) (Set.size model.turnWordsGuessed)
+                                    |> Just
+                            )
+                            model.teamScore
+                    }
 
         Word word ->
-            { model | turnWordsGuessed = Set.insert word model.turnWordsGuessed }
+            let
+                turnWordsGuessed : Set String
+                turnWordsGuessed =
+                    Set.insert word model.turnWordsGuessed
 
-        MoreWords ->
-            { model
-                | turnWords = []
-                , wordsArchive = []
-            }
+                turnRemainingWords : List String
+                turnRemainingWords =
+                    model.turnWords
+                        |> List.filter (\w -> not <| Set.member w turnWordsGuessed)
+                        |> Debug.log ""
+            in
+            if List.isEmpty turnRemainingWords then
+                { model
+                    | turnWordsGuessed = turnWordsGuessed
+                    , turnWords = model.turnWords ++ List.take wordsPerTurn model.wordsArchive
+                    , wordsArchive = List.drop wordsPerTurn model.wordsArchive
+                }
+
+            else
+                { model | turnWordsGuessed = turnWordsGuessed }
 
 
 subscriptions : Model -> Sub Msg
@@ -100,36 +124,51 @@ subscriptions model =
 
 view : Model -> H.Html Msg
 view model =
-    if model.turnStarted then
-        H.div
-            []
-            [ H.p [] [ H.text (String.fromInt model.turnInSeconds) ]
-            , model.turnWords
-                |> List.map
-                    (\word ->
-                        H.li
-                            []
-                            [ H.button
-                                [ HE.onClick (Word word)
-                                , if Set.member word model.turnWordsGuessed then
-                                    HA.disabled True
+    H.div []
+        [ model.teamScore
+            |> Dict.toList
+            |> List.map (\(number, score) ->
+                H.li
+                    []
+                    [ H.text "Team "
+                    , H.text (String.fromInt number)
+                    , H.text ": "
+                    , H.text (String.fromInt score)
+                    ]
+            )
+            |> H.ul []
+        
+        , if model.turnStarted then
+            H.div
+                []
+                [ H.p [] [ H.text (String.fromInt model.turnInSeconds) ]
+                , model.turnWords
+                    |> List.map
+                        (\word ->
+                            H.li
+                                []
+                                [ H.button
+                                    [ HE.onClick (Word word)
+                                    , if Set.member word model.turnWordsGuessed then
+                                        HA.disabled True
 
-                                  else
-                                    HA.class ""
+                                      else
+                                        HA.class ""
+                                    ]
+                                    [ H.text word ]
                                 ]
-                                [ H.text word ]
-                            ]
-                    )
-                |> H.ul []
-            ]
+                        )
+                    |> H.ul []
+                ]
 
-    else
-        H.div
-            []
-            [ H.button
-                [ HE.onClick StartTurn ]
-                [ H.text "Start turn" ]
-            ]
+          else
+            H.div
+                []
+                [ H.button
+                    [ HE.onClick StartTurn ]
+                    [ H.text "Start turn" ]
+                ]
+        ]
 
 
 main : Program (List String) Model Msg
@@ -140,3 +179,4 @@ main =
         , update = \msg model -> ( update msg model, Cmd.none )
         , subscriptions = subscriptions
         }
+

@@ -7,8 +7,11 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Set exposing (Set)
 import Time
-import W.Styles
 import W.Button
+import W.Container
+import W.Styles
+import W.Heading
+import W.Text
 
 
 wordsPerTurn : Int
@@ -126,6 +129,7 @@ update msg model =
 
                     else
                         { model | turnState = End }
+
                 _ ->
                     model
 
@@ -169,39 +173,48 @@ view model =
             |> Dict.values
             |> List.map
                 (\team ->
-                    H.li
+                    W.Heading.view
                         []
-                        [ H.text ("Time " ++ team.name ++ ": ")
-                        , H.text (String.fromInt team.score)
+                        [ H.text (String.fromInt team.score)
                         ]
                 )
-            |> H.ul []
+            |> List.intersperse (W.Text.view [] [ H.text "x" ])
+            |> W.Container.view [ W.Container.horizontal, W.Container.gap_2, W.Container.alignCenterX, W.Container.alignCenterY ]
         , case model.turnState of
             Running seconds ->
                 H.div
                     []
                     [ H.p [] [ H.text (String.fromInt seconds) ]
                     , viewTurnWords model
-                    , H.button
-                        [ HE.onClick MoreWords ]
-                        [ H.text "More Words" ]
+                    , W.Container.view [ W.Container.padTop_4 ]
+                        [ W.Button.view [ W.Button.invisible ]
+                            { onClick = MoreWords
+                            , label = [ H.text "Mais Palavras" ]
+                            }
+                        ]
                     ]
 
             Start ->
                 H.div
                     []
-                    [ H.button
-                        [ HE.onClick StartTurn ]
-                        [ H.text "Start" ]
+                    [ W.Container.view [ W.Container.padTop_4 ]
+                        [ W.Button.view []
+                            { onClick = StartTurn
+                            , label = [ H.text "Iniciar" ]
+                            }
+                        ]
                     ]
 
             End ->
                 H.div
                     []
                     [ viewTurnWords model
-                    , H.button
-                        [ HE.onClick StartTurn ]
-                        [ H.text "Finish" ]
+                    , W.Container.view [ W.Container.padTop_4 ]
+                        [ W.Button.view []
+                            { onClick = EndTurn
+                            , label = [ H.text "Finalizar" ]
+                            }
+                        ]
                     ]
         ]
 
@@ -211,21 +224,18 @@ viewTurnWords model =
     model.turnWords
         |> List.map
             (\word ->
-                H.li
-                    []
-                    [ W.Button.view
-                        [ if Set.member word model.turnWordsGuessed then
-                            W.Button.primary
+                W.Button.view
+                    [ if Set.member word model.turnWordsGuessed then
+                        W.Button.success
 
-                          else
-                            W.Button.noAttr
-                        ]
-                        { onClick = ToggleWord word
-                        , label = [ H.text word ]
-                        }
+                      else
+                        W.Button.outlined
                     ]
+                    { onClick = ToggleWord word
+                    , label = [ H.text word ]
+                    }
             )
-        |> H.ul []
+        |> W.Container.view [ W.Container.gap_2 ]
 
 
 main : Program (List String) Model Msg

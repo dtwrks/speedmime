@@ -9,8 +9,8 @@ import Set exposing (Set)
 import Time
 import W.Button
 import W.Container
-import W.Styles
 import W.Heading
+import W.Styles
 import W.Text
 
 
@@ -21,12 +21,12 @@ wordsPerTurn =
 
 turnDuration : Int
 turnDuration =
-    10
+    3
 
 
 maxScore : Int
 maxScore =
-    50
+    2
 
 
 type alias Model =
@@ -49,11 +49,12 @@ type alias Team =
 type TurnState
     = Start
     | End
+    | GameOver
     | Running Int
 
 
-teams : Dict Int Team
-teams =
+initialTeams : Dict Int Team
+initialTeams =
     [ { name = "Claro", score = 0, turns = 0 }
     , { name = "Escuro", score = 0, turns = 0 }
     ]
@@ -63,7 +64,7 @@ teams =
 
 init : List String -> Model
 init words =
-    { teams = teams
+    { teams = initialTeams
     , teamTurn = 0
     , turnState = Start
     , turnWords = []
@@ -85,20 +86,16 @@ update msg model =
     case msg of
         StartTurn ->
             { model
-                | teamTurn =
-                    modBy
-                        (Dict.size model.teams)
-                        (model.teamTurn + 1)
-                , turnState = Running 0
+                | turnState = Running 0
                 , turnWordsGuessed = Set.empty
                 , turnWords = List.take wordsPerTurn model.wordsArchive
                 , wordsArchive = List.drop wordsPerTurn model.wordsArchive
             }
 
         EndTurn ->
-            { model
-                | turnState = Start
-                , teams =
+            let
+                teams : Dict Int Team
+                teams =
                     Dict.update
                         model.teamTurn
                         (\team ->
@@ -108,12 +105,38 @@ update msg model =
                                         { t
                                             | turns = t.turns + 1
                                             , score =
-                                                t.score
-                                                    + Set.size model.turnWordsGuessed
+                                                t.score + Set.size model.turnWordsGuessed
                                         }
                                     )
                         )
                         model.teams
+                
+                teamsMaxScore : Int
+                teamsMaxScore =
+                    teams
+                    |> Dict.values
+                    |> List.foldl (\{ score } acc ->
+                       max acc score
+                    ) 0
+
+                teamsTurnsMatch : Bool
+                teamsTurnsMatch =
+                     teams
+                     |> Dict.values
+                     |> List.map .turns
+                     |> Set.fromList
+                     |> Set.size
+                     |> (==) 1
+            in
+            { model
+                | turnState =
+                    if teamsMaxScore >= maxScore && teamsTurnsMatch then
+                        GameOver
+
+                    else
+                        Start
+                , teamTurn = modBy (Dict.size model.teams) (model.teamTurn + 1)
+                , teams = teams
             }
 
         TurnTick ->
@@ -169,23 +192,35 @@ view model =
         []
         [ W.Styles.globalStyles
         , W.Styles.baseTheme
-        , model.teams
-            |> Dict.values
-            |> List.map
-                (\team ->
-                    W.Heading.view
-                        []
-                        [ H.text (String.fromInt team.score)
-                        ]
-                )
-            |> List.intersperse (W.Text.view [] [ H.text "x" ])
-            |> W.Container.view [ W.Container.horizontal, W.Container.gap_2, W.Container.alignCenterX, W.Container.alignCenterY ]
         , case model.turnState of
             Running seconds ->
+                W.Heading.view
+                    []
+                    [ H.text (String.fromInt seconds)
+                    ]
+                    |> List.singleton
+                    |> W.Container.view [ W.Container.padBottom_4, W.Container.horizontal, W.Container.gap_2, W.Container.alignCenterX, W.Container.alignCenterY ]
+
+            End ->
+                W.Container.view [ W.Container.padBottom_4 ]
+                    [ W.Button.viewDummy [ W.Button.disabled True, W.Button.danger ]
+                        [ H.text "Seu tempo acabou!" ]
+                    ]
+
+            Start ->
+                viewScoreBoard model
+            
+            GameOver ->
+                W.Container.view [ W.Container.gap_4 ]
+                    [ W.Button.viewDummy [ W.Button.disabled True, W.Button.warning ]
+                        [ H.text "O jogo acabou!" ]
+                    , viewScoreBoard model
+                    ]
+        , case model.turnState of
+            Running _ ->
                 H.div
                     []
-                    [ H.p [] [ H.text (String.fromInt seconds) ]
-                    , viewTurnWords model
+                    [ viewTurnWords model
                     , W.Container.view [ W.Container.padTop_4 ]
                         [ W.Button.view [ W.Button.invisible ]
                             { onClick = MoreWords
@@ -195,14 +230,11 @@ view model =
                     ]
 
             Start ->
-                H.div
-                    []
-                    [ W.Container.view [ W.Container.padTop_4 ]
-                        [ W.Button.view []
-                            { onClick = StartTurn
-                            , label = [ H.text "Iniciar" ]
-                            }
-                        ]
+                W.Container.view []
+                    [ W.Button.view []
+                        { onClick = StartTurn
+                        , label = [ H.text "Iniciar" ]
+                        }
                     ]
 
             End ->
@@ -216,8 +248,24 @@ view model =
                             }
                         ]
                     ]
+            GameOver ->
+               H.text ""
         ]
 
+
+viewScoreBoard : Model -> H.Html Msg
+viewScoreBoard model =
+    model.teams
+        |> Dict.values
+        |> List.map
+            (\team ->
+                W.Heading.view
+                    []
+                    [ H.text (String.fromInt team.score)
+                    ]
+            )
+        |> List.intersperse (W.Text.view [] [ H.text "x" ])
+        |> W.Container.view [ W.Container.padBottom_4, W.Container.horizontal, W.Container.gap_2, W.Container.alignCenterX, W.Container.alignCenterY ]
 
 viewTurnWords : Model -> H.Html Msg
 viewTurnWords model =

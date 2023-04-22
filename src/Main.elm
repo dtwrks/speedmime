@@ -7,6 +7,8 @@ import Html.Attributes as HA
 import Html.Events as HE
 import Set exposing (Set)
 import Time
+import W.Styles
+import W.Button
 
 
 wordsPerTurn : Int
@@ -27,8 +29,7 @@ maxScore =
 type alias Model =
     { teams : Dict Int Team
     , teamTurn : Int
-    , turnInSeconds : Int
-    , turnStarted : Bool
+    , turnState : TurnState
     , turnWords : List String
     , turnWordsGuessed : Set String
     , wordsArchive : List String
@@ -42,10 +43,16 @@ type alias Team =
     }
 
 
+type TurnState
+    = Start
+    | End
+    | Running Int
+
+
 teams : Dict Int Team
 teams =
-    [ { name = "Azul", score = 0, turns = 0 }
-    , { name = "Vermelho", score = 0, turns = 0 }
+    [ { name = "Claro", score = 0, turns = 0 }
+    , { name = "Escuro", score = 0, turns = 0 }
     ]
         |> List.indexedMap Tuple.pair
         |> Dict.fromList
@@ -55,8 +62,7 @@ init : List String -> Model
 init words =
     { teams = teams
     , teamTurn = 0
-    , turnInSeconds = 0
-    , turnStarted = False
+    , turnState = Start
     , turnWords = []
     , turnWordsGuessed = Set.empty
     , wordsArchive = words
@@ -65,8 +71,10 @@ init words =
 
 type Msg
     = StartTurn
+    | EndTurn
     | TurnTick
-    | Word String
+    | ToggleWord String
+    | MoreWords
 
 
 update : Msg -> Model -> Model
@@ -78,120 +86,146 @@ update msg model =
                     modBy
                         (Dict.size model.teams)
                         (model.teamTurn + 1)
-                , turnStarted = True
-                , turnInSeconds = 0
+                , turnState = Running 0
                 , turnWordsGuessed = Set.empty
                 , turnWords = List.take wordsPerTurn model.wordsArchive
                 , wordsArchive = List.drop wordsPerTurn model.wordsArchive
             }
 
+        EndTurn ->
+            { model
+                | turnState = Start
+                , teams =
+                    Dict.update
+                        model.teamTurn
+                        (\team ->
+                            team
+                                |> Maybe.map
+                                    (\t ->
+                                        { t
+                                            | turns = t.turns + 1
+                                            , score =
+                                                t.score
+                                                    + Set.size model.turnWordsGuessed
+                                        }
+                                    )
+                        )
+                        model.teams
+            }
+
         TurnTick ->
-            let
-                turnInSeconds : Int
-                turnInSeconds =
-                    model.turnInSeconds + 1
-            in
-            if turnInSeconds < turnDuration then
-                { model | turnInSeconds = turnInSeconds }
+            case model.turnState of
+                Running seconds_ ->
+                    let
+                        seconds : Int
+                        seconds =
+                            seconds_ + 1
+                    in
+                    if seconds < turnDuration then
+                        { model | turnState = Running seconds }
 
-            else
+                    else
+                        { model | turnState = End }
+                _ ->
+                    model
+
+        ToggleWord word ->
+            if Set.member word model.turnWordsGuessed then
                 { model
-                    | turnStarted = False
-                    , teams =
-                        Dict.update
-                            model.teamTurn
-                            (\team ->
-                                team
-                                    |> Maybe.map
-                                        (\t ->
-                                            { t
-                                                | turns = t.turns + 1
-                                                , score =
-                                                    t.score
-                                                        + Set.size model.turnWordsGuessed
-                                            }
-                                        )
-                            )
-                            model.teams
-                }
-
-        Word word ->
-            let
-                turnWordsGuessed : Set String
-                turnWordsGuessed =
-                    Set.insert word model.turnWordsGuessed
-
-                turnRemainingWords : List String
-                turnRemainingWords =
-                    model.turnWords
-                        |> List.filter (\w -> not <| Set.member w turnWordsGuessed)
-                        |> Debug.log ""
-            in
-            if List.isEmpty turnRemainingWords then
-                { model
-                    | turnWordsGuessed = turnWordsGuessed
-                    , turnWords = model.turnWords ++ List.take wordsPerTurn model.wordsArchive
-                    , wordsArchive = List.drop wordsPerTurn model.wordsArchive
+                    | turnWordsGuessed =
+                        Set.remove word model.turnWordsGuessed
                 }
 
             else
-                { model | turnWordsGuessed = turnWordsGuessed }
+                { model
+                    | turnWordsGuessed =
+                        Set.insert word model.turnWordsGuessed
+                }
+
+        MoreWords ->
+            { model
+                | turnWords = model.turnWords ++ List.take wordsPerTurn model.wordsArchive
+                , wordsArchive = List.drop wordsPerTurn model.wordsArchive
+            }
 
 
 subscriptions : Model -> Sub Msg
 subscriptions model =
-    if model.turnStarted then
-        Time.every 1000 (\_ -> TurnTick)
+    case model.turnState of
+        Running _ ->
+            Time.every 1000 (\_ -> TurnTick)
 
-    else
-        Sub.none
+        _ ->
+            Sub.none
 
 
 view : Model -> H.Html Msg
 view model =
-    H.div []
-        [ model.teams
+    H.div
+        []
+        [ W.Styles.globalStyles
+        , W.Styles.baseTheme
+        , model.teams
             |> Dict.values
             |> List.map
                 (\team ->
                     H.li
                         []
-                        [ H.text ("Equipe " ++ team.name ++ ": ")
+                        [ H.text ("Time " ++ team.name ++ ": ")
                         , H.text (String.fromInt team.score)
                         ]
                 )
             |> H.ul []
-        , if model.turnStarted then
-            H.div
-                []
-                [ H.p [] [ H.text (String.fromInt model.turnInSeconds) ]
-                , model.turnWords
-                    |> List.map
-                        (\word ->
-                            H.li
-                                []
-                                [ H.button
-                                    [ HE.onClick (Word word)
-                                    , if Set.member word model.turnWordsGuessed then
-                                        HA.disabled True
+        , case model.turnState of
+            Running seconds ->
+                H.div
+                    []
+                    [ H.p [] [ H.text (String.fromInt seconds) ]
+                    , viewTurnWords model
+                    , H.button
+                        [ HE.onClick MoreWords ]
+                        [ H.text "More Words" ]
+                    ]
 
-                                      else
-                                        HA.class ""
-                                    ]
-                                    [ H.text word ]
-                                ]
-                        )
-                    |> H.ul []
-                ]
+            Start ->
+                H.div
+                    []
+                    [ H.button
+                        [ HE.onClick StartTurn ]
+                        [ H.text "Start" ]
+                    ]
 
-          else
-            H.div
-                []
-                [ H.button
-                    [ HE.onClick StartTurn ]
-                    [ H.text "Start turn" ]
-                ]
+            End ->
+                H.div
+                    []
+                    [ viewTurnWords model
+                    , H.button
+                        [ HE.onClick StartTurn ]
+                        [ H.text "Finish" ]
+                    ]
         ]
+
+
+viewTurnWords : Model -> H.Html Msg
+viewTurnWords model =
+    model.turnWords
+        |> List.map
+            (\word ->
+                H.li
+                    []
+                    [ W.Button.view
+                        [ if Set.member word model.turnWordsGuessed then
+                            W.Button.primary
+
+                          else
+                            W.Button.noAttr
+                        ]
+                        { onClick = ToggleWord word
+                        , label = [ H.text word ]
+                        }
+                    ]
+            )
+        |> H.ul []
 
 
 main : Program (List String) Model Msg

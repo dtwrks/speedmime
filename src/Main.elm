@@ -20,7 +20,7 @@ turnDuration =
 
 
 type alias Model =
-    { teamScore : Dict Int Int
+    { teams : Dict Int Team
     , teamTurn : Int
     , turn : Int
     , turnInSeconds : Int
@@ -31,9 +31,23 @@ type alias Model =
     }
 
 
+type alias Team =
+    { name : String
+    , score : Int
+    }
+
+teams : Dict Int Team
+teams =
+    [ { name = "Azul", score = 0 }
+    , { name = "Vermelho", score = 0 }
+    ]
+    |> List.indexedMap Tuple.pair
+    |> Dict.fromList
+
+
 init : List String -> Model
 init words =
-    { teamScore = Dict.fromList [ ( 0, 0 ), ( 1, 0 ) ]
+    { teams = teams
     , teamTurn = 0
     , turn = 0
     , turnInSeconds = 0
@@ -58,7 +72,7 @@ update msg model =
                 | turn = model.turn + 1
                 , teamTurn =
                     modBy
-                        (Dict.size model.teamScore)
+                        (Dict.size model.teams)
                         (model.teamTurn + 1)
                 , turnStarted = True
                 , turnInSeconds = 0
@@ -78,16 +92,18 @@ update msg model =
             else
                 { model
                     | turnStarted = False
-                    , teamScore =
+                    , teams =
                         Dict.update
                             model.teamTurn
-                            (\score ->
-                                score
-                                    |> Maybe.withDefault 0
-                                    |> (+) (Set.size model.turnWordsGuessed)
-                                    |> Just
+                            (\team ->
+                                team
+                                    |> Maybe.map (\t ->
+                                        { t | score =
+                                            t.score + (Set.size model.turnWordsGuessed)
+                                         }
+                                        ) 
                             )
-                            model.teamScore
+                            model.teams
                     }
 
         Word word ->
@@ -125,15 +141,13 @@ subscriptions model =
 view : Model -> H.Html Msg
 view model =
     H.div []
-        [ model.teamScore
-            |> Dict.toList
-            |> List.map (\(number, score) ->
+        [ model.teams
+            |> Dict.values
+            |> List.map (\team ->
                 H.li
                     []
-                    [ H.text "Team "
-                    , H.text (String.fromInt number)
-                    , H.text ": "
-                    , H.text (String.fromInt score)
+                    [ H.text ("Team " ++ team.name ++ ": ")
+                    , H.text (String.fromInt team.score)
                     ]
             )
             |> H.ul []
@@ -179,4 +193,5 @@ main =
         , update = \msg model -> ( update msg model, Cmd.none )
         , subscriptions = subscriptions
         }
+
 

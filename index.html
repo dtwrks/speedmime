@@ -2,6 +2,8 @@
   <head></head>
   <body>
     <main></main>
+    <audio id="sfx-bleep" src="https://media.geeksforgeeks.org/wp-content/uploads/20190531135120/beep.mp3" preload="auto"></audio>
+
     <script>
       const words = [
         "Abacate",
@@ -1046,6 +1048,14 @@
         node: document.querySelector("main"),
         flags: shuffle(words),
       });
+
+      app.ports.timesIsUp.subscribe(() => {
+        for (i=0; i<3; i++) {
+          setTimeout(() => {
+            document.getElementById('sfx-bleep').play();
+          }, i * 1000);
+        }
+      })
     </script>
   </body>
 </html>

@@ -1,4 +1,4 @@
-module Main exposing (main)
+port module Main exposing (main)
 
 import Browser
 import Dict exposing (Dict)
@@ -14,6 +14,9 @@ import W.Styles
 import W.Text
 
 
+port turnIsOver : () -> Cmd msg
+
+
 wordsPerTurn : Int
 wordsPerTurn =
     5
@@ -21,12 +24,12 @@ wordsPerTurn =
 
 turnDuration : Int
 turnDuration =
-    3
+    5
 
 
 maxScore : Int
 maxScore =
-    2
+    50
 
 
 type alias Model =
@@ -85,12 +88,12 @@ update : Msg -> Model -> Model
 update msg model =
     case msg of
         StartTurn ->
-            { model
+            ({ model
                 | turnState = Running 0
                 , turnWordsGuessed = Set.empty
                 , turnWords = List.take wordsPerTurn model.wordsArchive
                 , wordsArchive = List.drop wordsPerTurn model.wordsArchive
-            }
+            }, Cmd.none)
 
         EndTurn ->
             let
@@ -128,7 +131,7 @@ update msg model =
                      |> Set.size
                      |> (==) 1
             in
-            { model
+            ( { model
                 | turnState =
                     if teamsMaxScore >= maxScore && teamsTurnsMatch then
                         GameOver
@@ -137,7 +140,7 @@ update msg model =
                         Start
                 , teamTurn = modBy (Dict.size model.teams) (model.teamTurn + 1)
                 , teams = teams
-            }
+            }, Cmd.none )
 
         TurnTick ->
             case model.turnState of
@@ -148,32 +151,32 @@ update msg model =
                             seconds_ + 1
                     in
                     if seconds < turnDuration then
-                        { model | turnState = Running seconds }
+                        ( { model | turnState = Running seconds }, Cmd.none )
 
                     else
-                        { model | turnState = End }
+                        ( { model | turnState = End }, turnIsOver )
 
                 _ ->
-                    model
+                    ( model, Cmd.none )
 
         ToggleWord word ->
             if Set.member word model.turnWordsGuessed then
-                { model
+                ({ model
                     | turnWordsGuessed =
                         Set.remove word model.turnWordsGuessed
-                }
+                }, Cmd.none)
 
             else
-                { model
+                ({ model
                     | turnWordsGuessed =
                         Set.insert word model.turnWordsGuessed
-                }
+                }, Cmd.none)
 
         MoreWords ->
-            { model
+            ({ model
                 | turnWords = model.turnWords ++ List.take wordsPerTurn model.wordsArchive
                 , wordsArchive = List.drop wordsPerTurn model.wordsArchive
-            }
+            }, Cmd.none)
 
 
 subscriptions : Model -> Sub Msg
@@ -291,7 +294,7 @@ main =
     Browser.element
         { init = \words -> ( init words, Cmd.none )
         , view = view
-        , update = \msg model -> ( update msg model, Cmd.none )
+        , update = update msg model
         , subscriptions = subscriptions
         }
 

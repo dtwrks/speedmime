@@ -84,7 +84,7 @@ type Msg
     | MoreWords
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> ( Model, Cmd Msg )
 update msg model =
     case msg of
         StartTurn ->
@@ -154,7 +154,7 @@ update msg model =
                         ( { model | turnState = Running seconds }, Cmd.none )
 
                     else
-                        ( { model | turnState = End }, turnIsOver )
+                        ( { model | turnState = End }, turnIsOver () )
 
                 _ ->
                     ( model, Cmd.none )
@@ -294,7 +294,8 @@ main =
     Browser.element
         { init = \words -> ( init words, Cmd.none )
         , view = view
-        , update = update msg model
+        , update = update
         , subscriptions = subscriptions
         }
+
 

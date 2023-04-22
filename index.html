@@ -1049,7 +1049,7 @@
         flags: shuffle(words),
       });
 
-      app.ports.timesIsUp.subscribe(() => {
+      app.ports.turnIsOver.subscribe(() => {
         for (i=0; i<3; i++) {
           setTimeout(() => {
             document.getElementById('sfx-bleep').play();
@@ -1059,3 +1059,4 @@
     </script>
   </body>
 </html>
+

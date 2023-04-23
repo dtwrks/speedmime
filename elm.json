@@ -13,15 +13,15 @@
             "uncover-co/elm-widgets": "2.2.0"
         },
         "indirect": {
-            "avh4/elm-color": "1.0.0 <= v < 2.0.0",
+            "avh4/elm-color": "1.0.0",
             "elm/json": "1.1.3",
             "elm/svg": "1.0.1",
             "elm/time": "1.0.0",
             "elm/virtual-dom": "1.0.2",
-            "justinmimbs/date": "4.0.0 <= v < 5.0.0",
-            "justinmimbs/time-extra": "1.1.0 <= v < 2.0.0",
-            "tesk9/palette": "3.0.1 <= v < 4.0.0",
-            "uncover-co/elm-theme": "2.0.0 <= v < 3.0.0"
+            "justinmimbs/date": "4.0.1",
+            "justinmimbs/time-extra": "1.1.1",
+            "tesk9/palette": "3.0.1",
+            "uncover-co/elm-theme": "2.0.0"
         }
     },
     "test-dependencies": {

@@ -20,6 +20,7 @@
             "elm/virtual-dom": "1.0.2",
             "justinmimbs/date": "4.0.1",
             "justinmimbs/time-extra": "1.1.1",
+            "rtfeldman/elm-hex": "1.0.0",
             "tesk9/palette": "3.0.1",
             "uncover-co/elm-theme": "2.0.0"
         }

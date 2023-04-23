@@ -1,0 +1,16 @@
+{
+    "name": "speedmime",
+    "version": "0.0.1",
+    "description": "",
+    "main": "index.js",
+    "scripts": {
+      "postinstall": "elm-tooling install",
+      "build": "elm-watch make --optimize"
+    },
+    "author": "",
+    "license": "ISC",
+    "devDependencies": {
+      "elm-tooling": "^1.8.0",
+      "elm-watch": "^1.1.0-beta.2"
+    }
+  }

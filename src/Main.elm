@@ -24,7 +24,7 @@ wordsPerTurn =
 
 turnDuration : Int
 turnDuration =
-    5
+    60
 
 
 maxScore : Int

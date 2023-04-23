@@ -1,6 +1,6 @@
 {
   "tools": {
-    "elm": "0.19.2",
+    "elm": "0.19.1",
     "elm-format": "0.8.7",
     "elm-json": "0.2.10",
     "elm-test-rs": "2.0.0"

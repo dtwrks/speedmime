@@ -476,7 +476,6 @@ words =
     , "Pinoquio"
     , "Pintar"
     , "Pintura facial"
-    , "Pinwheel"
     , "Pipoca"
     , "Pirâmide"
     , "Pirata"
